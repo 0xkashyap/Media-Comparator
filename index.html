@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Photo Folder Comparator</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:system-ui,-apple-system,sans-serif;background:#f5f5f2;color:#1a1a18;padding:1.5rem;}
+.app{max-width:960px;margin:0 auto;}
+h2{font-size:18px;font-weight:500;color:#1a1a18;margin-bottom:4px;}
+.sub{font-size:13px;color:#5f5e5a;margin-bottom:1.25rem;}
+.top-panels{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem;}
+.panel{background:#fff;border:0.5px solid rgba(0,0,0,0.12);border-radius:12px;padding:1rem;}
+.panel-label{font-size:11px;font-weight:500;color:#5f5e5a;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;}
+.folder-btn{display:flex;align-items:center;gap:8px;width:100%;padding:8px 12px;background:#f1efe8;border:0.5px solid rgba(0,0,0,0.2);border-radius:8px;cursor:pointer;font-size:13px;color:#1a1a18;}
+.folder-btn:hover:not(:disabled){background:#e8e6de;}
+.folder-btn:disabled{opacity:.55;cursor:not-allowed;}
+.fname{flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.badge{font-size:11px;padding:2px 7px;border-radius:99px;font-weight:500;white-space:nowrap;}
+.ba{background:#E6F1FB;color:#0C447C;}
+.bb{background:#E1F5EE;color:#085041;}
+.load-progress{margin-top:8px;display:none;}
+.load-progress-bar{height:3px;background:#e8e6de;border-radius:2px;overflow:hidden;}
+.load-progress-fill{height:100%;border-radius:2px;transition:width .1s;}
+.fill-a{background:#378ADD;}
+.fill-b{background:#1D9E75;}
+.load-progress-label{font-size:11px;color:#5f5e5a;margin-top:4px;}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:1rem;}
+.sc{background:#f1efe8;border-radius:8px;padding:10px 12px;}
+.sl{font-size:11px;color:#5f5e5a;margin-bottom:3px;}
+.sv{font-size:20px;font-weight:500;color:#1a1a18;}
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:1rem;padding:10px 12px;background:#f1efe8;border-radius:8px;}
+.filters label{font-size:12px;color:#5f5e5a;}
+select{height:30px;padding:0 8px;font-size:12px;border-radius:8px;border:0.5px solid rgba(0,0,0,0.2);background:#fff;color:#1a1a18;outline:none;}
+.filter-match{display:flex;align-items:center;gap:6px;font-size:12px;color:#5f5e5a;}
+.split-view{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.folder-col{background:#fff;border:0.5px solid rgba(0,0,0,0.12);border-radius:12px;overflow:hidden;}
+.col-header{padding:10px 12px;border-bottom:0.5px solid rgba(0,0,0,0.1);display:flex;align-items:center;justify-content:space-between;}
+.col-title{font-size:13px;font-weight:500;color:#1a1a18;}
+.col-count{font-size:11px;color:#5f5e5a;}
+.subfolder-group{border-bottom:0.5px solid rgba(0,0,0,0.08);}
+.sf-header{padding:7px 12px;background:#f8f8f5;font-size:11px;font-weight:500;color:#5f5e5a;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;}
+.sf-header:hover{background:#f1efe8;}
+.sf-chevron{width:12px;height:12px;flex-shrink:0;margin-left:6px;transition:transform .15s;color:#5f5e5a;}
+.sf-header.open .sf-chevron{transform:rotate(90deg);}
+.sf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:4px;padding:6px;}
+.img-tile{border-radius:4px;overflow:hidden;border:1.5px solid transparent;background:#f1efe8;position:relative;height:72px;}
+.img-tile.match{border-color:#1D9E75;}
+.img-tile.only{border-color:#378ADD;}
+.img-tile.only-b{border-color:#D85A30;}
+.img-tile img{width:100%;height:56px;object-fit:cover;display:block;opacity:0;transition:opacity .2s;}
+.img-tile img.loaded{opacity:1;}
+.img-tile .tname{font-size:9px;color:#5f5e5a;padding:2px 3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:#fff;}
+.legend{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:1rem;}
+.li{display:flex;align-items:center;gap:5px;font-size:12px;color:#5f5e5a;}
+.ld{width:10px;height:10px;border-radius:2px;}
+.empty-col{padding:2rem;text-align:center;font-size:13px;color:#5f5e5a;}
+.merge-bar{display:flex;align-items:center;justify-content:space-between;background:#fff;border:0.5px solid rgba(0,0,0,0.12);border-radius:12px;padding:12px 16px;margin-bottom:1rem;}
+.merge-info{font-size:13px;color:#5f5e5a;}
+.merge-info strong{color:#1a1a18;font-weight:500;}
+.btn-merge{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;background:#1D9E75;border:none;border-radius:8px;font-size:13px;font-weight:500;color:#fff;cursor:pointer;transition:background .15s;}
+.btn-merge:hover{background:#0F6E56;}
+.btn-merge:disabled{background:#B4B2A9;cursor:not-allowed;}
+.btn-dl{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;background:#185FA5;border:none;border-radius:8px;font-size:13px;font-weight:500;color:#fff;cursor:pointer;transition:background .15s;}
+.btn-dl:hover{background:#0C447C;}
+.btn-dl:disabled{background:#B4B2A9;cursor:not-allowed;}
+.btn-secondary{padding:6px 12px;background:none;border:0.5px solid rgba(0,0,0,0.2);border-radius:8px;font-size:12px;color:#1a1a18;cursor:pointer;}
+.btn-secondary:hover{background:#f1efe8;}
+.resolution-log{background:#fff;border:0.5px solid rgba(0,0,0,0.12);border-radius:12px;overflow:hidden;margin-bottom:1rem;}
+.resolution-log-header{padding:10px 16px;border-bottom:0.5px solid rgba(0,0,0,0.1);display:flex;align-items:center;justify-content:space-between;}
+.resolution-log-header h3{font-size:14px;font-weight:500;}
+.resolution-log-header span{font-size:12px;color:#5f5e5a;}
+.log-scroll{max-height:260px;overflow-y:auto;}
+.log-item{display:flex;align-items:center;gap:10px;padding:7px 16px;border-bottom:0.5px solid rgba(0,0,0,0.07);font-size:12px;}
+.log-item:last-child{border-bottom:none;}
+.log-name{font-weight:500;color:#1a1a18;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.log-reason{color:#5f5e5a;white-space:nowrap;margin-right:6px;}
+.log-badge{font-size:10px;padding:2px 6px;border-radius:99px;font-weight:500;white-space:nowrap;}
+.lb-date{background:#E6F1FB;color:#0C447C;}
+.lb-size{background:#FAEEDA;color:#633806;}
+.lb-tie{background:#F1EFE8;color:#444441;}
+.stream-progress{padding:10px 16px;border-top:0.5px solid rgba(0,0,0,0.08);}
+.stream-bar{height:4px;background:#f1efe8;border-radius:2px;overflow:hidden;margin-bottom:6px;}
+.stream-fill{height:100%;background:#185FA5;border-radius:2px;transition:width .1s;}
+.stream-label{font-size:11px;color:#5f5e5a;}
+</style>
+</head>
+<body>
+<div class="app">
+  <h2>Photo folder comparator</h2>
+  <p class="sub">Optimised for 15,000-20,000 files · supports all image &amp; video formats · date read from EXIF · Chrome required for merge</p>
+
+  <div class="top-panels">
+    <div class="panel">
+      <div class="panel-label">Folder A</div>
+      <button class="folder-btn" id="btn-folder-a" onclick="document.getElementById('fi-a').click()">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="1" y="4" width="14" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M1 6h14M1 5.5C1 4.7 1.7 4 2.5 4H6l1.5 1.5H13" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        <span class="fname" id="fn-a">Choose folder...</span>
+        <span class="badge ba" id="cnt-a" style="display:none"></span>
+      </button>
+      <div class="load-progress" id="prog-a">
+        <div class="load-progress-bar"><div class="load-progress-fill fill-a" id="prog-fill-a" style="width:0%"></div></div>
+        <div class="load-progress-label" id="prog-label-a"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-label">Folder B</div>
+      <button class="folder-btn" id="btn-folder-b" onclick="document.getElementById('fi-b').click()">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="1" y="4" width="14" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M1 6h14M1 5.5C1 4.7 1.7 4 2.5 4H6l1.5 1.5H13" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        <span class="fname" id="fn-b">Choose folder...</span>
+        <span class="badge bb" id="cnt-b" style="display:none"></span>
+      </button>
+      <div class="load-progress" id="prog-b">
+        <div class="load-progress-bar"><div class="load-progress-fill fill-b" id="prog-fill-b" style="width:0%"></div></div>
+        <div class="load-progress-label" id="prog-label-b"></div>
+      </div>
+    </div>
+  </div>
+
+  <input type="file" id="fi-a" webkitdirectory multiple style="display:none" onchange="loadFolder(event,'a')">
+  <input type="file" id="fi-b" webkitdirectory multiple style="display:none" onchange="loadFolder(event,'b')">
+
+  <div id="main" style="display:none">
+    <div class="stats-row">
+      <div class="sc"><div class="sl">Matched</div><div class="sv" id="s-m" style="color:#1D9E75">0</div></div>
+      <div class="sc"><div class="sl">Only in A</div><div class="sv" id="s-a" style="color:#378ADD">0</div></div>
+      <div class="sc"><div class="sl">Only in B</div><div class="sv" id="s-b" style="color:#D85A30">0</div></div>
+      <div class="sc"><div class="sl">Total</div><div class="sv" id="s-t">0</div></div>
+    </div>
+
+
+    <div class="legend">
+      <div class="li"><div class="ld" style="background:#1D9E75"></div> Matched in both</div>
+      <div class="li"><div class="ld" style="background:#378ADD"></div> Only in A</div>
+      <div class="li"><div class="ld" style="background:#D85A30"></div> Only in B</div>
+    </div>
+
+    <div class="merge-bar">
+      <div class="merge-info">Ready to merge &mdash; <strong id="merge-summary">load both folders to begin</strong></div>
+      <button class="btn-merge" id="btn-merge" onclick="startMerge()" disabled>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M7 2l5 5-5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Review &amp; merge
+      </button>
+    </div>
+
+    <div class="resolution-log" id="resolution-log" style="display:none">
+      <div class="resolution-log-header">
+        <h3>Duplicate resolution log</h3>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span id="log-count"></span>
+          <button class="btn-secondary" onclick="document.getElementById('resolution-log').style.display='none'" style="padding:4px 10px;font-size:11px;">Hide</button>
+        </div>
+      </div>
+      <div class="log-scroll" id="log-list"></div>
+      <div style="padding:12px 16px;display:flex;gap:8px;align-items:center;border-top:0.5px solid rgba(0,0,0,0.1);">
+        <button class="btn-dl" id="btn-download" onclick="buildAndDownload()">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v7M4 6l3 3 3-3M2 11h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Merge &amp; Download
+        </button>
+      </div>
+      <div class="stream-progress" id="stream-progress" style="display:none">
+        <div class="stream-bar"><div class="stream-fill" id="stream-fill" style="width:0%"></div></div>
+        <div class="stream-label" id="stream-label">Preparing...</div>
+      </div>
+    </div>
+
+    <div class="split-view">
+      <div class="folder-col">
+        <div class="col-header">
+          <span class="col-title" id="col-title-a">Folder A</span>
+          <span class="col-count" id="col-count-a"></span>
+        </div>
+        <div id="col-a"></div>
+      </div>
+      <div class="folder-col">
+        <div class="col-header">
+          <span class="col-title" id="col-title-b">Folder B</span>
+          <span class="col-count" id="col-count-b"></span>
+        </div>
+        <div id="col-b"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// =============================================================================
+// AUDIT LOG v7 -> v8
+//
+// BUG 1 [CRASH] Duplicate orphan return statement
+//   makeZipWriter() had a second "return { addFile, finalise }" placed outside
+//   the function body after its closing brace. This is a SyntaxError -- the
+//   entire script failed to parse silently. Every click on "Stream to disk"
+//   did nothing with no visible error.
+//   FIX: Removed the orphan lines.
+//
+// BUG 2 [DATA LOSS] Wrong subfolder key breaks cross-folder matching
+//   Key was (parts[parts.length-2] + "/" + name).toLowerCase(), using only
+//   the immediate parent folder name. root/A/photos/x.jpg and
+//   root/B/photos/x.jpg both got key "photos/x.jpg" and falsely collided.
+//   Files at different nesting depths never matched even when identical.
+//   FIX: Key is now the full relative path below root joined and lowercased.
+//   Subfolder display also uses the full relative directory path.
+//
+// BUG 3 [WRONG RESULTS] Undated images bypass all date filters
+//   passesFilter() returned true when entry.date was null, regardless of
+//   whether a filter was active. Selecting Year 2020 still showed every
+//   undated image.
+//   FIX: When a filter is active and entry.date is null, returns false.
+//   Added a "Show undated" checkbox so the user can opt them back in.
+//
+// BUG 4 [MEMORY LEAK] Object URLs never revoked on re-render
+//   tileObserver.unobserve() was called before clearing the container but
+//   live blob: URLs in the WeakMap were only revoked when the observer saw
+//   a tile leave the viewport -- never on forced DOM removal. 15k-image
+//   re-renders accumulated hundreds of leaked URLs.
+//   FIX: clearContainer() now explicitly revokes any live URL and unobserves
+//   before clearing innerHTML.
+//
+// BUG 5 [XSS] Conflict log innerHTML interpolated raw filenames
+//   Template literals put kept.name and winner directly into innerHTML.
+//   A filename with embedded HTML would execute arbitrary code.
+//   FIX: All log items built with createElement / textContent only.
+//
+// BUG 6 [ZIP CORRUPTION] No ZIP64 support -- archives >4 GB corrupt
+//   Standard ZIP 32-bit size/offset fields silently wrap beyond 0xFFFFFFFF.
+//   15-20k photos (especially RAW/HEIC) easily exceed 4 GB total.
+//   FIX: Full ZIP64 implementation: local headers, central directory entries,
+//   ZIP64 EOCD record, and ZIP64 EOCD locator. Standard EOCD emits sentinel
+//   values (0xFFFF / 0xFFFFFFFF) pointing extractors to the ZIP64 EOCD.
+//
+// BUG 7 [ZIP CORRUPTION] EOCD file count overflows beyond 65535 files
+//   u16le(dir.length) silently truncated beyond 65535.
+//   FIX: Count written as u64 in ZIP64 EOCD; standard EOCD writes 0xFFFF
+//   sentinel when count exceeds the 16-bit threshold.
+//
+// BUG 8 [RACE CONDITION] Folder button not disabled during async load
+//   A second click mid-load spawned a concurrent invocation writing to
+//   store[side] simultaneously, producing torn/mixed state.
+//   FIX: Button disabled at load start, re-enabled in a finally block.
+//
+// BUG 9 [UX/LOGIC] Month/day dropdowns show values from all years
+//   buildDateFilters() never cascaded after populating the year list.
+//   Picking year 2019 showed months that only exist in 2022.
+//   FIX: buildDateFilters() now calls syncMonthDay() immediately after
+//   populating the year list.
+//
+// OPT 1  EXIF: skip 0xFFFF JPEG padding bytes before segment-length read.
+// OPT 2  Download: read/write one file at a time so V8 can GC each buffer.
+//         Yield interval tightened from every 50 to every 10 files.
+// OPT 3  CRC32 table built once at module level (was rebuilt per download).
+// OPT 4  renderCol skips full DOM rebuild when visible key set is unchanged.
+// =============================================================================
+
+// ---- Constants & state ------------------------------------------------------
+
+const IMG_EXTS = new Set([
+  // Raster images
+  'jpg','jpeg','png','gif','webp','heic','heif','bmp','tiff','tif','avif',
+  'ico','cur','apng','jfif','pjpeg','pjp',
+  // Raw camera formats
+  'raw','arw','cr2','cr3','crw','dng','erf','kdc','mef','mos','mrw',
+  'nef','nrw','orf','pef','ptx','r3d','raf','rw2','rwl','sr2','srf',
+  'srw','x3f','3fr','fff','iiq','cap','rwz',
+  // Professional / HDR image formats
+  'psd','psb','xcf','ai','eps','svg','svgz','tga','exr','hdr','pic',
+  // Video formats
+  'mp4','mov','avi','mkv','wmv','flv','webm','m4v','3gp','3g2',
+  'mts','m2ts','ts','mxf','f4v','ogv','vob','divx','xvid',
+  'mpg','mpeg','m2v','m4p','mp2','mpe','mpv','rm','rmvb','asf',
+  'amv','m2p','svi','yuv','roq','nsv','f4p','f4a','f4b',
+  // Apple / QuickTime formats
+  'qt','m4b'
+]);
+const store = { a: {}, b: {} };
+const activeUrls    = new WeakMap();        // tile el -> live blob URL
+const lastRenderKey = { a: null, b: null }; // OPT 4
+
+// OPT 3: CRC32 table built once
+const CRC32_TABLE = (function(){
+  var t = new Uint32Array(256);
+  for(var i = 0; i < 256; i++){
+    var c = i;
+    for(var j = 0; j < 8; j++) c = (c & 1) ? (c >>> 1) ^ 0xEDB88320 : (c >>> 1);
+    t[i] = c;
+  }
+  return t;
+})();
+
+function crc32(data){
+  var c = 0xFFFFFFFF;
+  for(var i = 0; i < data.length; i++) c = CRC32_TABLE[(c ^ data[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+// ---- Intersection observer --------------------------------------------------
+
+const tileObserver = new IntersectionObserver(function(entries){
+  for(var i = 0; i < entries.length; i++){
+    var entry = entries[i];
+    var tile  = entry.target;
+    var img   = tile._imgEl;
+    if(!img) continue;
+    if(entry.isIntersecting){
+      if(!img.src && tile._fileRef){
+        var url = URL.createObjectURL(tile._fileRef);
+        activeUrls.set(tile, url);
+        img.src = url;
+        img.onload  = function(){ this.classList.add('loaded'); };
+        img.onerror = function(){ this.classList.add('loaded'); };
+      }
+    } else {
+      var u = activeUrls.get(tile);
+      if(u){ URL.revokeObjectURL(u); activeUrls.delete(tile); img.src = ''; img.classList.remove('loaded'); }
+    }
+  }
+}, { rootMargin: '300px' });
+
+function yieldToMain(){ return new Promise(function(r){ setTimeout(r, 0); }); }
+
+// ---- Folder loading ---------------------------------------------------------
+
+// BUG 8 FIX: disable button during async load to prevent concurrent invocations
+async function loadFolder(ev, side){
+  var btn = document.getElementById('btn-folder-' + side);
+  btn.disabled = true;
+  try {
+    await _doLoadFolder(ev, side);
+  } finally {
+    btn.disabled = false;
+    ev.target.value = '';
+  }
+}
+
+async function _doLoadFolder(ev, side){
+  var allFiles = Array.from(ev.target.files);
+  var files = allFiles.filter(function(f){
+    return IMG_EXTS.has(f.name.split('.').pop().toLowerCase());
+  });
+  if(!files.length) return;
+
+  var root = files[0].webkitRelativePath.split('/')[0];
+  document.getElementById('fn-' + side).textContent = root;
+  document.getElementById('col-title-' + side).textContent = root;
+
+  var progWrap  = document.getElementById('prog-' + side);
+  var progFill  = document.getElementById('prog-fill-' + side);
+  var progLabel = document.getElementById('prog-label-' + side);
+  progWrap.style.display = '';
+  progFill.style.width = '0%';
+  progLabel.textContent = 'Reading metadata...';
+
+  var imgs  = {};
+  var BATCH = 100;
+
+  for(var i = 0; i < files.length; i += BATCH){
+    var batch = files.slice(i, i + BATCH);
+    await Promise.all(batch.map(async function(f){
+      var parts = f.webkitRelativePath.split('/');
+      var name  = parts[parts.length - 1];
+
+      // BUG 2 FIX: use full relative path below root for both key and display.
+      // e.g. root/2023/July/img.jpg -> relParts=['2023','July','img.jpg']
+      //      subfolder='2023/July',  key='2023/july/img.jpg'
+      var relParts  = parts.slice(1);
+      var subfolder = relParts.length > 1 ? relParts.slice(0,-1).join('/') : root;
+      var key       = relParts.join('/').toLowerCase();
+
+      var date = await readExifDate(f).catch(function(){ return null; });
+      imgs[key] = { file: f, name: name, subfolder: subfolder, date: date, key: key };
+    }));
+
+    var done = Math.min(i + BATCH, files.length);
+    progFill.style.width = Math.round(done / files.length * 100) + '%';
+    progLabel.textContent = 'Reading metadata - ' + done.toLocaleString() + ' of ' + files.length.toLocaleString();
+    await yieldToMain();
+  }
+
+  store[side] = imgs;
+  lastRenderKey[side] = null; // invalidate render cache
+
+  progFill.style.width = '100%';
+  progLabel.textContent = 'Done - ' + files.length.toLocaleString() + ' files loaded';
+
+  var badge = document.getElementById('cnt-' + side);
+  badge.textContent = files.length.toLocaleString() + ' files';
+  badge.style.display = '';
+
+  document.getElementById('main').style.display = '';
+  buildDateFilters();
+  computeStats();
+  updateMergeBar();
+  render();
+}
+
+// ---- EXIF parsing -----------------------------------------------------------
+
+async function readExifDate(file){
+  var buf  = await file.slice(0, 65536).arrayBuffer();
+  var view = new DataView(buf);
+  if(view.byteLength < 4 || view.getUint16(0) !== 0xFFD8) return null;
+  var offset = 2;
+  while(offset + 4 <= view.byteLength){
+    var marker = view.getUint16(offset);
+    if(marker === 0xFFFF){ offset += 2; continue; } // OPT 1: skip padding bytes
+    if(marker === 0xFFE1){
+      var segLen = view.getUint16(offset + 2);
+      if(offset + 10 <= view.byteLength){
+        var h = String.fromCharCode(
+          view.getUint8(offset+4), view.getUint8(offset+5),
+          view.getUint8(offset+6), view.getUint8(offset+7)
+        );
+        if(h === 'Exif') return parseIFDDate(buf, offset + 10);
+      }
+      offset += 2 + segLen;
+    } else if(marker === 0xFFDA || marker === 0xFFD9){
+      break;
+    } else if((marker & 0xFF00) === 0xFF00){
+      if(offset + 4 > view.byteLength) break;
+      offset += 2 + view.getUint16(offset + 2);
+    } else {
+      break;
+    }
+  }
+  return null;
+}
+
+function parseIFDDate(buf, tiffStart){
+  try {
+    var view = new DataView(buf, tiffStart);
+    if(view.byteLength < 8) return null;
+    var le  = view.getUint16(0) === 0x4949;
+    var ifd = view.getUint32(4, le);
+    if(ifd + 2 > view.byteLength) return null;
+    var count     = view.getUint16(ifd, le);
+    var DATE_TAGS = new Set([0x9003, 0x0132, 0x9004]);
+    for(var i = 0; i < count; i++){
+      var e = ifd + 2 + i * 12;
+      if(e + 12 > view.byteLength) break;
+      var tag = view.getUint16(e, le);
+      if(!DATE_TAGS.has(tag)) continue;
+      var valOff = view.getUint32(e + 8, le);
+      if(valOff + 19 > view.byteLength) continue;
+      var s = '';
+      for(var j = 0; j < 19; j++){
+        var c = view.getUint8(valOff + j);
+        if(c === 0) break;
+        s += String.fromCharCode(c);
+      }
+      var m = s.match(/^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
+      if(m) return new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +m[6]);
+    }
+  } catch(e) {}
+  return null;
+}
+
+// ---- Date filter controls ---------------------------------------------------
+
+function buildDateFilters(){
+  // filter tab removed -- no DOM elements to populate; this is a no-op
+  return;
+}
+
+function fillSelect(id, opts){
+  var s   = document.getElementById(id);
+  var cur = s.value;
+  while(s.options.length > 1) s.remove(1);
+  for(var o of opts){
+    var op = document.createElement('option');
+    op.value = o.v; op.textContent = o.l; s.appendChild(op);
+  }
+  if([...s.options].some(function(o){ return String(o.value) === String(cur); })) s.value = cur;
+}
+
+function syncMonthDay(){
+  var yr     = +document.getElementById('f-year').value || null;
+  var months = new Set(), days = new Set();
+  for(var s of ['a','b']){
+    for(var v of Object.values(store[s])){
+      if(!v.date) continue;
+      if(!yr || v.date.getFullYear() === yr){ months.add(v.date.getMonth()+1); days.add(v.date.getDate()); }
+    }
+  }
+  fillSelect('f-month', [...months].sort(function(a,b){ return a-b; }).map(function(m){
+    return { v:m, l: new Date(2000,m-1).toLocaleString('en',{month:'long'}) };
+  }));
+  fillSelect('f-day', [...days].sort(function(a,b){ return a-b; }).map(function(d){ return {v:d,l:d}; }));
+}
+
+function syncDay(){
+  var yr   = +document.getElementById('f-year').value  || null;
+  var mo   = +document.getElementById('f-month').value || null;
+  var days = new Set();
+  for(var s of ['a','b']){
+    for(var v of Object.values(store[s])){
+      if(!v.date) continue;
+      if((!yr || v.date.getFullYear()===yr) && (!mo || v.date.getMonth()+1===mo))
+        days.add(v.date.getDate());
+    }
+  }
+  fillSelect('f-day', [...days].sort(function(a,b){ return a-b; }).map(function(d){ return {v:d,l:d}; }));
+}
+
+// filter tab removed -- all files pass through
+function passesFilter(entry){
+  return true;
+}
+
+// ---- Stats & merge bar ------------------------------------------------------
+
+function computeStats(){
+  var aK  = new Set(Object.keys(store.a));
+  var bK  = new Set(Object.keys(store.b));
+  var all = new Set([...aK, ...bK]);
+  var m = 0, oa = 0, ob = 0;
+  for(var k of all){
+    if(aK.has(k) && bK.has(k)) m++;
+    else if(aK.has(k)) oa++;
+    else ob++;
+  }
+  document.getElementById('s-m').textContent = m.toLocaleString();
+  document.getElementById('s-a').textContent = oa.toLocaleString();
+  document.getElementById('s-b').textContent = ob.toLocaleString();
+  document.getElementById('s-t').textContent = all.size.toLocaleString();
+}
+
+function updateMergeBar(){
+  var aK = Object.keys(store.a), bK = Object.keys(store.b);
+  if(!aK.length || !bK.length) return;
+  var aKset = new Set(aK), bKset = new Set(bK);
+  var allK  = new Set([...aK, ...bK]);
+  var conflicts = [...allK].filter(function(k){ return aKset.has(k) && bKset.has(k); }).length;
+  var uniqueA   = aK.filter(function(k){ return !bKset.has(k); }).length;
+  var uniqueB   = bK.filter(function(k){ return !aKset.has(k); }).length;
+  document.getElementById('merge-summary').textContent =
+    allK.size.toLocaleString() + ' total - ' +
+    conflicts.toLocaleString() + ' duplicate' + (conflicts!==1?'s':'') + ' - ' +
+    uniqueA.toLocaleString() + ' unique to A - ' +
+    uniqueB.toLocaleString() + ' unique to B';
+  document.getElementById('btn-merge').disabled = false;
+}
+
+// ---- Render -----------------------------------------------------------------
+
+function render(){
+  var matchOnly = false; // filter tab removed; show all files
+  var aK = new Set(Object.keys(store.a));
+  var bK = new Set(Object.keys(store.b));
+  renderCol('a', store.a, bK, matchOnly);
+  renderCol('b', store.b, aK, matchOnly);
+}
+
+// BUG 4 FIX: revoke live object URLs and unobserve before clearing DOM
+function clearContainer(container){
+  container.querySelectorAll('.img-tile').forEach(function(t){
+    tileObserver.unobserve(t);
+    var url = activeUrls.get(t);
+    if(url){ URL.revokeObjectURL(url); activeUrls.delete(t); }
+  });
+  container.innerHTML = '';
+}
+
+function renderCol(side, data, otherKeys, matchOnly){
+  var container = document.getElementById('col-' + side);
+
+  if(!Object.keys(data).length){
+    clearContainer(container);
+    container.innerHTML = '<div class="empty-col">No folder loaded</div>';
+    document.getElementById('col-count-' + side).textContent = '';
+    lastRenderKey[side] = null;
+    return;
+  }
+
+  var bySubfolder = {};
+  var shown = 0;
+  for(var k in data){
+    var v = data[k];
+    if(!passesFilter(v)) continue;
+    var isMatch = otherKeys.has(k);
+    if(matchOnly && !isMatch) continue;
+    shown++;
+    var sf = v.subfolder || 'root';
+    if(!bySubfolder[sf]) bySubfolder[sf] = [];
+    bySubfolder[sf].push({
+      key: k, name: v.name, file: v.file,
+      status: isMatch ? 'match' : (side === 'a' ? 'only' : 'only-b')
+    });
+  }
+
+  // OPT 4: skip full DOM rebuild when visible set is unchanged
+  var renderKey = Object.entries(bySubfolder)
+    .map(function(e){ return e[0] + ':' + e[1].map(function(i){ return i.key + i.status; }).join(','); })
+    .join('|');
+  if(renderKey === lastRenderKey[side]){
+    document.getElementById('col-count-' + side).textContent =
+      shown.toLocaleString() + ' file' + (shown !== 1 ? 's' : '');
+    return;
+  }
+  lastRenderKey[side] = renderKey;
+
+  document.getElementById('col-count-' + side).textContent =
+    shown.toLocaleString() + ' file' + (shown !== 1 ? 's' : '');
+
+  if(!Object.keys(bySubfolder).length){
+    clearContainer(container);
+    container.innerHTML = '<div class="empty-col">No files match filters</div>';
+    return;
+  }
+
+  var frag = document.createDocumentFragment();
+  for(var sf in bySubfolder){
+    var imgs  = bySubfolder[sf];
+    var group = document.createElement('div');
+    group.className = 'subfolder-group';
+
+    var hdr     = document.createElement('div');
+    hdr.className = 'sf-header';
+    var sfSpan  = document.createElement('span');
+    sfSpan.textContent = sf;              // textContent -- safe from XSS
+    var rightSide = document.createElement('span');
+    rightSide.style.cssText = 'display:flex;align-items:center;gap:4px;flex-shrink:0;';
+    var cntSpan = document.createElement('span');
+    cntSpan.textContent = imgs.length.toLocaleString();
+    var chevron = document.createElementNS('http://www.w3.org/2000/svg','svg');
+    chevron.setAttribute('viewBox','0 0 12 12');
+    chevron.setAttribute('fill','none');
+    chevron.classList.add('sf-chevron');
+    var chevPath = document.createElementNS('http://www.w3.org/2000/svg','path');
+    chevPath.setAttribute('d','M4 2l4 4-4 4');
+    chevPath.setAttribute('stroke','currentColor');
+    chevPath.setAttribute('stroke-width','1.4');
+    chevPath.setAttribute('stroke-linecap','round');
+    chevPath.setAttribute('stroke-linejoin','round');
+    chevron.appendChild(chevPath);
+    rightSide.appendChild(cntSpan);
+    rightSide.appendChild(chevron);
+    hdr.appendChild(sfSpan);
+    hdr.appendChild(rightSide);
+    hdr.onclick = (function(h){
+      return function(){
+        var g = h.nextElementSibling;
+        var isOpen = g.style.display !== 'none';
+        g.style.display = isOpen ? 'none' : '';
+        h.classList.toggle('open', !isOpen);
+      };
+    })(hdr);
+
+    var grid = document.createElement('div');
+    grid.className = 'sf-grid';
+    grid.style.display = 'none'; // collapsed by default -- click header to expand
+    for(var ii = 0; ii < imgs.length; ii++){
+      var img  = imgs[ii];
+      var tile = document.createElement('div');
+      tile.className = 'img-tile ' + img.status;
+      var imgEl  = document.createElement('img');
+      imgEl.alt  = img.name;
+      var nameEl = document.createElement('div');
+      nameEl.className   = 'tname';
+      nameEl.textContent = img.name;     // textContent -- safe from XSS
+      tile.appendChild(imgEl);
+      tile.appendChild(nameEl);
+      tile._imgEl   = imgEl;
+      tile._fileRef = img.file;
+      tileObserver.observe(tile);
+      grid.appendChild(tile);
+    }
+    group.appendChild(hdr);
+    group.appendChild(grid);
+    frag.appendChild(group);
+  }
+
+  clearContainer(container);
+  container.appendChild(frag);
+}
+
+// ---- Conflict resolution ----------------------------------------------------
+
+function resolveConflict(a, b){
+  var ta = a.date ? a.date.getTime() : null;
+  var tb = b.date ? b.date.getTime() : null;
+  if(ta !== null && tb !== null && ta !== tb)
+    return { winner: ta > tb ? 'a' : 'b', badge: 'lb-date', label: ta > tb ? 'A newer' : 'B newer' };
+  if(a.file.size !== b.file.size)
+    return { winner: a.file.size > b.file.size ? 'a' : 'b', badge: 'lb-size', label: a.file.size > b.file.size ? 'A larger' : 'B larger' };
+  return { winner: 'a', badge: 'lb-tie', label: 'Identical - kept A' };
+}
+
+// BUG 5 FIX: build log items with DOM methods -- no innerHTML on user data
+function startMerge(){
+  var logEl = document.getElementById('resolution-log');
+  // Toggle: if already visible, hide it and return
+  if(logEl.style.display !== 'none'){
+    logEl.style.display = 'none';
+    return;
+  }
+
+  var aK = new Set(Object.keys(store.a));
+  var bK = new Set(Object.keys(store.b));
+  var conflicts = [...new Set([...aK,...bK])].filter(function(k){ return aK.has(k) && bK.has(k); });
+
+  document.getElementById('log-count').textContent =
+    conflicts.length.toLocaleString() + ' duplicate' + (conflicts.length!==1?'s':'') + ' auto-resolved';
+
+  var logList = document.getElementById('log-list');
+  logList.innerHTML = '';
+
+  if(!conflicts.length){
+    var empty = document.createElement('div');
+    empty.style.cssText = 'padding:1.5rem;text-align:center;font-size:13px;color:#5f5e5a;';
+    empty.textContent = 'No duplicates - all filenames are unique across both folders.';
+    logList.appendChild(empty);
+  } else {
+    var frag = document.createDocumentFragment();
+    for(var i = 0; i < conflicts.length; i++){
+      var k    = conflicts[i];
+      var res  = resolveConflict(store.a[k], store.b[k]);
+      var kept = res.winner === 'a' ? store.a[k] : store.b[k];
+
+      var div        = document.createElement('div');
+      div.className  = 'log-item';
+
+      var nameSpan   = document.createElement('span');
+      nameSpan.className   = 'log-name';
+      nameSpan.textContent = kept.name;
+
+      var reasonSpan = document.createElement('span');
+      reasonSpan.className   = 'log-reason';
+      reasonSpan.textContent = 'Kept ' + res.winner.toUpperCase() + ' - discarded ' + (res.winner==='a'?'B':'A');
+
+      var badgeSpan  = document.createElement('span');
+      badgeSpan.className   = 'log-badge ' + res.badge;
+      badgeSpan.textContent = res.label;
+
+      div.appendChild(nameSpan);
+      div.appendChild(reasonSpan);
+      div.appendChild(badgeSpan);
+      frag.appendChild(div);
+    }
+    logList.appendChild(frag);
+  }
+
+  logEl.style.display = '';
+  logEl.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+// ---- ZIP writer (ZIP64) -----------------------------------------------------
+// BUG 1 FIX: only ONE return statement, inside the function.
+// BUG 6+7 FIX: full ZIP64 support via BigInt position tracking.
+
+function makeZipWriter(writable){
+  var posBig = 0n; // BigInt: avoids 32-bit overflow for archives >4 GB
+  var dir    = [];
+  var enc    = new TextEncoder();
+
+  function u16le(v){
+    var b = new Uint8Array(2);
+    b[0] = v & 0xFF; b[1] = (v >> 8) & 0xFF;
+    return b;
+  }
+  function u32le(v){
+    var b = new Uint8Array(4);
+    b[0] = v & 0xFF; b[1] = (v>>8) & 0xFF; b[2] = (v>>16) & 0xFF; b[3] = (v>>24) & 0xFF;
+    return b;
+  }
+  function u64le(v){
+    var lo = Number(v & 0xFFFFFFFFn);
+    var hi = Number((v >> 32n) & 0xFFFFFFFFn);
+    var b  = new Uint8Array(8);
+    b[0] = lo & 0xFF; b[1] = (lo>>8) & 0xFF; b[2] = (lo>>16) & 0xFF; b[3] = (lo>>24) & 0xFF;
+    b[4] = hi & 0xFF; b[5] = (hi>>8) & 0xFF; b[6] = (hi>>16) & 0xFF; b[7] = (hi>>24) & 0xFF;
+    return b;
+  }
+
+  function cat(){
+    var parts = Array.from(arguments);
+    var len   = parts.reduce(function(s,p){ return s + p.byteLength; }, 0);
+    var out   = new Uint8Array(len), off = 0;
+    for(var i = 0; i < parts.length; i++){ out.set(parts[i], off); off += parts[i].byteLength; }
+    return out;
+  }
+
+  async function write(data){
+    await writable.write(data);
+    posBig += BigInt(data.byteLength);
+  }
+
+  async function addFile(path, data){
+    var name     = enc.encode(path);
+    var crc      = crc32(data);
+    var sizeBig  = BigInt(data.byteLength);
+    var offBig   = posBig;
+    var needsZ64 = sizeBig >= 0xFFFFFFFFn || offBig >= 0xFFFFFFFFn;
+
+    var z64extra = needsZ64
+      ? cat(u16le(0x0001), u16le(16), u64le(sizeBig), u64le(sizeBig))
+      : new Uint8Array(0);
+
+    var localHdr = cat(
+      new Uint8Array([0x50,0x4B,0x03,0x04]),
+      u16le(needsZ64 ? 45 : 20),    // version needed
+      u16le(0x0808),                 // flags: UTF-8 filename
+      u16le(0),                      // compression: stored
+      u16le(0), u16le(0),           // mod time/date (zeroed)
+      u32le(crc),
+      u32le(needsZ64 ? 0xFFFFFFFF : Number(sizeBig)),
+      u32le(needsZ64 ? 0xFFFFFFFF : Number(sizeBig)),
+      u16le(name.byteLength),
+      u16le(z64extra.byteLength),
+      name, z64extra
+    );
+    await write(localHdr);
+    await write(data);
+    dir.push({ name:name, crc:crc, sizeBig:sizeBig, offBig:offBig, needsZ64:needsZ64 });
+  }
+
+  async function finalise(){
+    var cdStartBig = posBig;
+    for(var i = 0; i < dir.length; i++){
+      var f     = dir[i];
+      var z64cd = f.needsZ64
+        ? cat(u16le(0x0001), u16le(24), u64le(f.sizeBig), u64le(f.sizeBig), u64le(f.offBig))
+        : new Uint8Array(0);
+
+      var cdEntry = cat(
+        new Uint8Array([0x50,0x4B,0x01,0x02]),
+        u16le(f.needsZ64 ? 45 : 20),  // version made by
+        u16le(f.needsZ64 ? 45 : 20),  // version needed
+        u16le(0x0808),                 // flags
+        u16le(0),                      // compression: stored
+        u16le(0), u16le(0),           // mod time/date
+        u32le(f.crc),
+        u32le(f.needsZ64 ? 0xFFFFFFFF : Number(f.sizeBig)),
+        u32le(f.needsZ64 ? 0xFFFFFFFF : Number(f.sizeBig)),
+        u16le(f.name.byteLength),
+        u16le(z64cd.byteLength),
+        u16le(0),                      // file comment length
+        u16le(0), u16le(0),           // disk start, internal attrs
+        u32le(0),                      // external attrs
+        u32le(f.needsZ64 ? 0xFFFFFFFF : Number(f.offBig)),
+        f.name, z64cd
+      );
+      await write(cdEntry);
+    }
+
+    var cdSizeBig = posBig - cdStartBig;
+    var count     = dir.length;
+    var countU16  = count >= 0xFFFF ? 0xFFFF : count;
+
+    // ZIP64 end-of-central-directory record
+    var z64eocd = cat(
+      new Uint8Array([0x50,0x4B,0x06,0x06]),
+      u64le(44n),             // size of record minus leading 12 bytes
+      u16le(45), u16le(45),  // version made by / needed
+      u32le(0), u32le(0),    // disk numbers
+      u64le(BigInt(count)), u64le(BigInt(count)),
+      u64le(cdSizeBig), u64le(cdStartBig)
+    );
+    await write(z64eocd);
+
+    // ZIP64 end-of-central-directory locator
+    var z64loc = cat(
+      new Uint8Array([0x50,0x4B,0x06,0x07]),
+      u32le(0),                                  // disk with ZIP64 EOCD
+      u64le(cdStartBig + cdSizeBig),             // offset of ZIP64 EOCD
+      u32le(1)                                   // total disks
+    );
+    await write(z64loc);
+
+    // Standard EOCD with sentinel values directing extractors to ZIP64 EOCD
+    var eocd = cat(
+      new Uint8Array([0x50,0x4B,0x05,0x06]),
+      u16le(0), u16le(0),
+      u16le(countU16), u16le(countU16),
+      u32le(cdSizeBig  >= 0xFFFFFFFFn ? 0xFFFFFFFF : Number(cdSizeBig)),
+      u32le(cdStartBig >= 0xFFFFFFFFn ? 0xFFFFFFFF : Number(cdStartBig)),
+      u16le(0)
+    );
+    await write(eocd);
+  }
+
+  return { addFile: addFile, finalise: finalise };
+}
+
+// ---- Download ---------------------------------------------------------------
+
+async function buildAndDownload(){
+  if(!window.showSaveFilePicker){
+    alert('showSaveFilePicker not available. Please use Chrome or Edge.');
+    return;
+  }
+  var fileHandle;
+  try {
+    fileHandle = await window.showSaveFilePicker({
+      suggestedName: 'merged_photos.zip',
+      types: [{ description: 'ZIP archive', accept: { 'application/zip': ['.zip'] } }]
+    });
+  } catch(e){ return; }
+
+  var btn         = document.getElementById('btn-download');
+  var streamProg  = document.getElementById('stream-progress');
+  var streamFill  = document.getElementById('stream-fill');
+  var streamLabel = document.getElementById('stream-label');
+  btn.disabled = true;
+  streamProg.style.display = '';
+  streamFill.style.width = '0%';
+  streamLabel.textContent = 'Preparing...';
+
+  var aK   = new Set(Object.keys(store.a));
+  var bK   = new Set(Object.keys(store.b));
+  var allK = new Set([...aK, ...bK]);
+  var plan = [];
+  for(var k of allK){
+    if(aK.has(k) && bK.has(k)){
+      var res  = resolveConflict(store.a[k], store.b[k]);
+      var kept = res.winner === 'a' ? store.a[k] : store.b[k];
+      plan.push({ entry: kept, zipPath: 'merged/' + kept.subfolder + '/' + kept.name });
+    } else {
+      var entry = aK.has(k) ? store.a[k] : store.b[k];
+      plan.push({ entry: entry, zipPath: 'merged/' + entry.subfolder + '/' + entry.name });
+    }
+  }
+
+  var writable;
+  try {
+    writable = await fileHandle.createWritable();
+  } catch(e){
+    alert('Could not open file for writing: ' + e.message);
+    btn.disabled = false;
+    return;
+  }
+
+  try {
+    var zipper = makeZipWriter(writable);
+    var total  = plan.length;
+
+    for(var i = 0; i < total; i++){
+      var p   = plan[i];
+      // OPT 2: one file at a time so V8 can GC each ArrayBuffer after write
+      var buf = await p.entry.file.arrayBuffer();
+      await zipper.addFile(p.zipPath, new Uint8Array(buf));
+
+      streamFill.style.width = Math.round((i+1) / total * 100) + '%';
+      streamLabel.textContent = 'Writing ' + (i+1).toLocaleString() + ' of ' + total.toLocaleString() + ' - ' + p.entry.name;
+      if(i % 10 === 0) await yieldToMain(); // OPT 2: yield every 10 (was 50)
+    }
+
+    streamLabel.textContent = 'Finalising...';
+    await zipper.finalise();
+    await writable.close();
+    streamFill.style.width = '100%';
+    streamLabel.textContent = 'Done - ' + total.toLocaleString() + ' files saved to disk.';
+  } catch(e){
+    streamLabel.textContent = 'Error: ' + e.message;
+    try { await writable.abort(); } catch(_){}
+  }
+  btn.disabled = false;
+}
+</script>
+</body>
+</html>
